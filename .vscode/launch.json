@@ -1,0 +1,62 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Backend: FastAPI
+      "name": "Python: FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "module": "main",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      // Frontend: Next.js (dev)
+      "name": "Next.js: Debug (dev)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_OPTIONS": "--inspect"
+      }
+    },
+    {
+      // Frontend: Next.js (build + start)
+      "name": "Next.js: Debug (build & start)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start"],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "production",
+        "NODE_OPTIONS": "--inspect"
+      },
+      "preLaunchTask": "npm: build"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Run Fullstack (FastAPI + Next.js)",
+      "configurations": [
+        "Python: FastAPI",
+        "Next.js: Debug (dev)"
+      ],
+      "preLaunchTask": "Install All Deps",
+      "stopAll": true
+    }
+  ]
+}

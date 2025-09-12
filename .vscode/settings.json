@@ -1,0 +1,57 @@
+{
+  "$schema": "./schemas/vscode-settings.json",
+  // --- Python (giữ nguyên của bạn) ---
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.executeInFileDir": true,
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/backend"
+  ],
+  "python.analysis.autoImportCompletions": true,
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.linting.flake8Enabled": true,
+  "code-runner.runInTerminal": true,
+  "files.associations": {
+    "*.py": "python"
+  },
+  "python.envFile": "${workspaceFolder}/.env",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": ["backend/tests"],
+
+  // --- Frontend: TypeScript / Next.js ---
+  "typescript.tsdk": "frontend/node_modules/typescript/lib", // dùng TypeScript local của dự án
+  "eslint.workingDirectories": ["frontend"], // bật eslint trong frontend
+  "editor.formatOnSave": true, // auto format khi save
+  "editor.defaultFormatter": "esbenp.prettier-vscode", // dùng Prettier
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "frontend/package.json",
+        "/frontend/package.json",
+        "package.json"
+      ],
+      "url": "https://json.schemastore.org/package"
+    },
+    {
+      "fileMatch": [
+        "/.vscode/settings.json",
+        ".vscode/settings.json"
+      ],
+      "url": "./schemas/vscode-settings.json"
+    }
+  ]
+}
