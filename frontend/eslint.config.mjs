@@ -10,7 +10,12 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // Kế thừa cấu hình Next + TypeScript và vô hiệu hóa rule xung đột với Prettier
+  ...compat.extends(
+    "next/core-web-vitals",
+    "next/typescript",
+    "eslint-config-prettier"
+  ),
   {
     ignores: [
       "node_modules/**",
