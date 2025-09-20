@@ -155,3 +155,212 @@ Ghi chú:
 - MSW: dùng API v2 (`import { http, HttpResponse } from 'msw'`). Trong integration test (JSDOM), ưu tiên path-only `/api/...` để khớp `fetch('/api/...')`.
 - Jest polyfills: `jest.polyfills.ts` thêm `TextEncoder`, Streams, `BroadcastChannel` để MSW hoạt động trong Node.
 - Playwright trên Linux có thể cần cài thêm system libs (GTK, gstreamer, v.v.).
+
+---
+
+## VIII. Alias & Import Rules
+
+- Alias chính (khai báo trong `frontend/tsconfig.json` + `frontend/jest.config.js`):
+
+```text
+'@/*'               -> 'src/*'
+'@domain/*'        -> 'src/domain/*'
+'@application/*'   -> 'src/application/*'
+'@infrastructure/*'-> 'src/infrastructure/*'
+'@presentation/*'  -> 'src/presentation/*'
+'@shared/*'        -> 'src/shared/*'
+```
+
+- Quy tắc phụ thuộc:
+  - Domain: chỉ import trong Domain.
+  - Application: import Domain + Application (interfaces). Không import React/Next.
+  - Infrastructure: import Application (interfaces) + Domain (DTO/entity nếu cần). Không import React.
+  - Presentation: import Application (use case) qua hook hoặc DI. Không gọi fetch trực tiếp, không import Infrastructure.
+
+- Ví dụ đúng/sai:
+
+```ts
+// Đúng (Presentation gọi UseCase)
+import { AddItemToCart } from '@application/use_cases/AddItemToCart';
+
+// Sai (Presentation gọi thẳng repo hạ tầng)
+// import { CartRepoHttp } from '@infrastructure/repositories/CartRepoHttp';
+```
+
+---
+
+## IX. Layer Templates (Boilerplates)
+
+- Use Case (`src/application/use_cases/SomeUseCase.ts`)
+
+```ts
+import { ISomeRepo } from '@application/interfaces/SomeRepo';
+
+export class SomeUseCase {
+  constructor(private repo: ISomeRepo) {}
+  async execute(input: { id: string }) {
+    const model = await this.repo.load(input.id);
+    // business orchestration...
+    return model;
+  }
+}
+```
+
+- Repository Interface (`src/application/interfaces/SomeRepo.ts`)
+
+```ts
+export interface ISomeRepo {
+  load(id: string): Promise<any>;
+  save?(data: any): Promise<void>;
+}
+```
+
+- Repository HTTP Implementation (`src/infrastructure/repositories/SomeRepoHttp.ts`)
+
+```ts
+import { ISomeRepo } from '@application/interfaces/SomeRepo';
+
+export class SomeRepoHttp implements ISomeRepo {
+  async load(id: string) {
+    const res = await fetch(`/api/some/${id}`, { cache: 'no-store' });
+    return res.json();
+  }
+}
+```
+
+- Hook Presentation (`src/presentation/hooks/useSomething.ts`)
+
+```ts
+'use client';
+import { useState } from 'react';
+import { SomeUseCase } from '@application/use_cases/SomeUseCase';
+import { SomeRepoHttp } from '@infrastructure/repositories/SomeRepoHttp';
+
+const useCase = new SomeUseCase(new SomeRepoHttp());
+
+export function useSomething() {
+  const [loading, setLoading] = useState(false);
+  const run = async (id: string) => {
+    setLoading(true);
+    try { return await useCase.execute({ id }); } finally { setLoading(false); }
+  };
+  return { run, loading };
+}
+```
+
+- Component Presentation (`src/presentation/components/SomethingButton.tsx`)
+
+```tsx
+'use client';
+import { Button } from '@shared/ui/button';
+import { useSomething } from '@presentation/hooks/useSomething';
+
+export function SomethingButton({ id }: { id: string }) {
+  const { run, loading } = useSomething();
+  return <Button onClick={() => run(id)} disabled={loading}>{loading ? 'Loading...' : 'Run'}</Button>;
+}
+```
+
+- Unit test (Domain) (`*.test.ts` cạnh file):
+
+```ts
+describe('EntityX', () => {
+  it('works', () => {/* ... */});
+});
+```
+
+- Integration test (RTL + MSW) (`frontend/tests/integration/*.integration.test.tsx`)
+
+```tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { SomethingButton } from '@presentation/components/SomethingButton';
+
+test('integration flow', async () => {
+  render(<SomethingButton id="1" />);
+  await userEvent.click(screen.getByRole('button'));
+  await screen.findByRole('button', { name: /run/i });
+});
+```
+
+---
+
+## X. MSW v2 Recipes
+
+- Định nghĩa handlers (`frontend/tests/msw/handlers.ts`):
+
+```ts
+import { http, HttpResponse } from 'msw';
+
+export const handlers = [
+  // Path-only để khớp fetch('/api/...') trong JSDOM
+  http.get('/api/some/:id', ({ params }) => {
+    return HttpResponse.json({ id: params.id, value: 42 }, { status: 200 });
+  }),
+  http.post('/api/some', async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json({ ok: true, body }, { status: 201 });
+  }),
+];
+```
+
+- Override trong 1 test cụ thể:
+
+```ts
+import { http, HttpResponse } from 'msw';
+import { server } from '../msw/server';
+
+server.use(
+  http.get('/api/some/:id', () => HttpResponse.json({ id: 'x', value: 0 }))
+);
+```
+
+---
+
+## XI. Playwright Recipes
+
+- Config gợi ý (đã có): `testDir`, `testMatch`, `webServer`, `timeout`.
+- Chọn selector ổn định:
+
+```ts
+page.getByRole('button', { name: /submit/i })
+page.getByTestId('cart-count')
+```
+
+- Mock API qua routing:
+
+```ts
+await page.route('**/api/some/**', async route => {
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+});
+```
+
+- Bật debug artifacts (tùy chọn CI):
+
+```ts
+use: { trace: 'on-first-retry', video: 'retain-on-failure', screenshot: 'only-on-failure' }
+```
+
+---
+
+## XII. CI & Quality Gates (gợi ý)
+
+- Jest:
+  - `collectCoverage: true`, `coverageThreshold` tối thiểu 80% cho Domain + Application.
+- Playwright:
+  - Bật trace/video trong CI.
+- GitHub Actions (rút gọn):
+  - job 1: install deps; job 2: `npm run test`; job 3: `npm run test:e2e`.
+
+---
+
+## XIII. Feature Walkthrough (Example)
+
+1) Domain: thêm `Order` entity + test cạnh file.
+2) Application: `CreateOrder` use case (nhận repo `IOrderRepo`).
+3) Infrastructure: `OrderRepoHttp` implements `IOrderRepo`.
+4) Presentation: `useCreateOrder` hook + `CreateOrderButton` component.
+5) Tests:
+   - Unit: entity + use case.
+   - Integration: render button, click, verify state (MSW mock `/api/order`).
+   - E2E: route mock `/api/order`, click, assert UI.

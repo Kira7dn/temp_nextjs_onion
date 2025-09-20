@@ -18,6 +18,13 @@ const customJestConfig = {
     '^@shared/(.*)$': '<rootDir>/src/shared/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/tests/e2e/'],
+  collectCoverage: true,
+  coverageDirectory: 'test-results/coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  reporters: [
+    'default',
+    ['jest-junit', { outputDirectory: 'test-results/junit', outputName: 'jest-junit.xml' }],
+  ],
 };
 
 module.exports = createJestConfig(customJestConfig);
