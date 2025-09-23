@@ -1,17 +1,16 @@
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "@shared/ui/sonner";
-import { ThemeProvider } from "@/providers/theme-provider";
-import { CalendarProvider } from "@shared/ui/event-calendar/calendar-context";
-import "./globals.css";
+import { Geist, Geist_Mono } from 'next/font/google';
+import { Toaster } from '@shared/ui/sonner';
+import { ThemeProvider } from '@/providers/theme-provider';
+import './globals.css';
 
 const fontSans = Geist({
-  variable: "--font-sans",
-  subsets: ["latin"],
+  variable: '--font-sans',
+  subsets: ['latin'],
 });
 
 const fontMono = Geist_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
+  variable: '--font-mono',
+  subsets: ['latin'],
 });
 
 export default function RootLayout({
@@ -30,7 +29,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <CalendarProvider>{children}</CalendarProvider>
+          {children}
           <Toaster />
         </ThemeProvider>
       </body>
