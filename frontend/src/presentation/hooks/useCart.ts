@@ -1,63 +1,30 @@
-// src/presentation/hooks/useCart.ts
-'use client';
-import { useEffect, useOptimistic, useState, useTransition } from 'react';
-import { createAddItemToCart, createGetCart } from '@presentation/dependency/cart';
-import { CartItem } from '@domain/entities/Cart';
+import { useEffect } from 'react';
+import { useStore } from 'zustand';
+import { useCartStore } from '@application/stores/cartStore';
 
 export function useCart(userId: string) {
-  const [, startTransition] = useTransition();
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [optimisticCart, addOptimistic] = useOptimistic(cart, (currentCart, newItem: CartItem) => {
-    const existingIndex = currentCart.findIndex(item => item.productId === newItem.productId);
-    if (existingIndex >= 0) {
-      const updated = [...currentCart];
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        quantity: updated[existingIndex].quantity + newItem.quantity,
-      };
-      return updated;
-    } else {
-      return [...currentCart, newItem];
-    }
-  });
+  // Use currentCart from store to avoid selector issues
+  const cart = useStore(useCartStore, (state) => state.currentCart);
+  const {
+    loadCart,
+    addToCart: storeAddToCart,
+    addToCartOptimistic: storeAddToCartOptimistic,
+  } = useCartStore();
 
-  // Load initial cart once
+  // Load initial cart and sync currentCart
   useEffect(() => {
-    if (cart.length === 0) {
-      const getCartUseCase = createGetCart();
-      getCartUseCase.execute(userId).then(setCart);
-    }
-  }, [userId, cart.length]);
+    const loadAndSetCurrent = async () => {
+      await loadCart(userId);
+    };
+    loadAndSetCurrent();
+  }, [userId, loadCart]);
 
-  // Optimistic add to cart
-  const addToCart = async (formData: FormData) => {
-    const productId = formData.get('productId') as string;
-    const qty = parseInt(formData.get('qty') as string) || 1;
-    const newItem = { productId, quantity: qty };
-
-    // Update optimistic UI ngay lập tức
-    startTransition(() => {
-      addOptimistic(newItem);
-    });
-
-    try {
-      // Execute use case
-      const useCase = createAddItemToCart();
-      await useCase.execute(userId, productId, qty);
-
-      // Update real state sau khi thành công
-      const getCartUseCase = createGetCart();
-      const updatedCart = await getCartUseCase.execute(userId);
-      setCart(updatedCart);
-    } catch (error) {
-      // useOptimistic tự động revert về cart cũ
-      console.error('❌ Add to cart failed:', error);
-      throw error;
-    }
-  };
+  // Wrapper functions to match the old API
+  const addToCartOptimistic = (formData: FormData) => storeAddToCartOptimistic(userId, formData);
 
   return {
-    cart: optimisticCart,
-    addToCart,
+    cart,
+    addToCart: addToCartOptimistic, // Use optimistic version as default
+    addToCartOptimistic,
   };
 }

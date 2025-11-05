@@ -1,0 +1,40 @@
+# copier.yaml
+_min_copier_version: '9.0.0'
+
+project_name:
+  type: str
+  help: Tên dự án Frontend (Next.js)
+  default: 'my-nextjs-app'
+
+author_name:
+  type: str
+  help: Tên của tác giả
+  default: 'Your Name'
+
+package_manager:
+  type: str
+  help: Chọn trình quản lý gói cho frontend
+  choices:
+    - npm
+    - pnpm
+    - yarn
+    - bun
+  default: 'npm'
+  ask: false
+
+install_deps:
+  type: bool
+  help: Có cài đặt dependencies ngay không? (sẽ chạy {{ package_manager }} install)
+  default: true
+
+_tasks:
+  - "python -c \"import subprocess; pm='{{ package_manager }}'; install={{ 'True' if install_deps else 'False' }}; cmds={'npm':['npm','install'],'pnpm':['pnpm','install'],'yarn':['yarn'],'bun':['bun','install']};\nif install: subprocess.check_call(cmds[pm])\""
+
+_exclude:
+  - .git/
+  - .gitignore
+  - node_modules/
+  - .next/
+  - venv/
+  - .venv/
+  - copier.yaml

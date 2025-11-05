@@ -10,6 +10,22 @@ This document outlines the implementation of **Clean Architecture** (also known 
 - **Maintainability**: Changes in one layer don't affect others
 - **Hybrid Support**: Supports both UI and API presentation in Next.js
 
+## Layer Object Types (FE Object Parser Reference)
+
+- **Domain**
+  - `domain/entity`: Pure entities/value objects
+  - `domain/service`: Stateless coordinators of complex domain rules
+- **Application**
+  - `application/interface`: Repository/adapter contracts (ports)
+  - `application/use_case`: Use case orchestrators calling domain services/entities
+  - `application/store`: Client-side state (Zustand)
+- **Infrastructure**
+  - `infrastructure/repository`: Implement repository interfaces (DB/cache)
+  - `infrastructure/adapter`: External API/SDK adapter implementing interfaces
+- **Presentation**
+  - `presentation/component`: React components/pages
+  - `presentation/hook`: Custom hooks bridging components ↔ application
+
 ---
 
 ## Architecture Overview
@@ -30,19 +46,19 @@ This document outlines the implementation of **Clean Architecture** (also known 
 
 ### Domain Layer
 - **Purpose**: Core business logic, entities, validation rules
-- **Contents**: Pure TypeScript classes, interfaces, business rules
+- **Contents**: Pure TypeScript entities, domain services, value objects
 - **Dependencies**: None (except standard library)
 - **Testing**: Unit tests for entities and pure functions
 
 ### Application Layer
 - **Purpose**: Orchestrate business operations
-- **Contents**: Use cases, server actions, repository interfaces
+- **Contents**: Use cases, domain facades/services orchestration, server actions, repository interfaces, Zustand stores
 - **Dependencies**: Domain layer
 - **Testing**: Unit tests with mocked interfaces
 
 ### Infrastructure Layer
 - **Purpose**: Handle external systems
-- **Contents**: Repository implementations, DB clients, external API clients
+- **Contents**: Repository implementations, adapters (HTTP/SDK), DB clients, external API clients
 - **Dependencies**: Application interfaces
 - **Testing**: Integration tests
 
@@ -65,13 +81,18 @@ This document outlines the implementation of **Clean Architecture** (also known 
 ### Step 1: Domain Layer
 - Create entities (TypeScript classes/interfaces)
 - Implement business rules and validation
+- Design domain services for complex business orchestration (pure functions/classes without external dependencies)
 
 ### Step 2: Application Layer
 - Define repository interfaces (ports)
 - Implement use cases (application services)
+- Wire domain services/entities inside use cases
+- Declare application stores (Zustand) and server actions
 
 ### Step 3: Infrastructure Layer
 - Implement repository interfaces using DB/API
+- Add adapters (HTTP/SDK clients) that fulfill application interfaces when direct repository implementation is insufficient
+- Keep infrastructure ignorant of presentation concerns
 
 ### Step 4: Presentation Layer
 - Create UI components/hooks
@@ -103,6 +124,8 @@ frontend/
 │   │       └── Cart.test.ts       # Unit test
 │   ├── application/
 │   │   ├── interfaces/            # Repository interfaces
+│   │   ├── stores/                # ✅ State management stores (Zustand)
+│   │   │   └── cartStore.ts       # Global cart state with optimistic updates
 │   │   ├── use_cases/             # Use cases
 │   │   └── server_actions/        # Server actions
 │   ├── infrastructure/
@@ -128,12 +151,14 @@ frontend/
 ## Examples
 
 ### Example 1: Add to Cart (Mutation)
-- **Domain**: `Cart` entity with `addItem()` method
-- **Application**: `AddItemToCart` use case, `ICartRepository` interface
+- **Domain**: `Cart` entity with `addItem()` method, `CartItem` type
+- **Application**:
+  - `AddItemToCart` use case, `ICartRepository` interface
+  - `cartStore` Zustand store with optimistic updates and rollback
 - **Infrastructure**: `CartRepoHttp` (in-memory storage)
 - **Presentation**:
-  - UI: `useAddToCart` hook, `AddToCartButton` component
-  - API: `POST /api/cart/:userId`
+  - UI: `useCart` hook (consumes store), `CartSection` component (controlled form)
+  - API: `POST /api/cart/:userId` (future implementation)
 
 ### Example 2: User Login (Authentication)
 - **Domain**: `User` entity
@@ -153,15 +178,34 @@ frontend/
 | Application    | Unit test       | Jest + mocked interfaces |
 | Infrastructure | Integration     | Jest + MSW for API mocks |
 | Presentation   | Unit/Integration| React Testing Library, Jest |
-| E2E            | Full flow       | Playwright |
 
 ---
 
 ## Tools & Recipes
 
-### DI Factories
-- Use factory functions for dependency injection
-- Example: `createAuthenticateUser()` returns new `AuthenticateUser` instance with injected repo
+### Dependency Injection
+- Use factory functions for dependency injection đặt tại `src/presentation/dependency/`
+- Presentation layer gọi các factory để lấy use case/stores đã được wiring với repository hoặc adapter
+- Application layer cung cấp các interface/implementation, tránh để components import trực tiếp repository/infrastructure
+- Example: `createAuthenticateUser()` trong `src/presentation/dependency/auth.ts` trả về `AuthenticateUser` đã inject `IUserRepository`
+
+### State Management (Zustand)
+- **Global State**: Use Zustand stores in **Application Layer** for cross-component state
+- **Local State**: Use React `useState` for component-specific state
+- **Store Location**: `src/application/stores/` (not in Presentation)
+- **Optimistic Updates**: Update UI immediately, rollback on error
+- **Example**:
+  ```typescript
+  // src/application/stores/cartStore.ts
+  export const useCartStore = create<CartStore>()(
+    subscribeWithSelector((set, get) => ({
+      carts: {},
+      addToCartOptimistic: async (userId, formData) => {
+        // Optimistic update + API call + rollback logic
+      }
+    }))
+  );
+  ```
 
 ### MSW (Mock Service Worker)
 - Mock API responses in tests
@@ -170,10 +214,6 @@ frontend/
 ### Playwright
 - E2E testing
 - Example: `page.route('**/api/cart/**', route => route.fulfill({ status: 200, json: cartData }))`
-
-### Dependency Injection
-- Singleton repos, factory use cases
-- Example: `src/shared/di/factories.ts`
 
 ---
 

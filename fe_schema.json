@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Clean Architecture Class Schema (Minimal)",
+  "type": "object",
+  "required": ["layer", "type", "name"],
+  "properties": {
+    "layer": {
+      "type": "string",
+      "enum": ["domain", "application", "infrastructure", "presentation"]
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "entity",
+        "service",
+        "interface",
+        "use_case",
+        "repository",
+        "store",
+        "hook",
+        "component"
+      ]
+    },
+    "name": { "type": "string" },
+
+    "properties": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "methods": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "metadata": {
+      "type": "object",
+      "description": "Thông tin bổ sung (input/output/implements/calls/usesHook...)",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
